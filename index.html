@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>진로 독서 기록장</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: 도서관 대출 카드 — 상단 반납일(마감) 슬립, 왼쪽 책등 목록, 가운데 기록지, 오른쪽 점검 패널 */
+:root{
+  --bg:#F3F5F1; --surface:#FFFFFF; --surface2:#E8ECE6; --line:#CBD3CB;
+  --ink:#16302A; --muted:#5B6B65; --accent:#1F6B5A; --accent-soft:#D8EAE3;
+  --stamp:#B5462F; --mark:#F2D27A; --ok:#2E7D4F; --warn:#B07A12; --bad:#B5462F;
+  --f-display:"Gowun Batang","Nanum Myeongjo",serif;
+  --f-body:"IBM Plex Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111715; --surface:#19211E; --surface2:#222C28; --line:#33413B;
+  --ink:#E3EBE7; --muted:#97A8A1; --accent:#6CC3A8; --accent-soft:#1E3A32;
+  --stamp:#E58A73; --mark:#8A6F22; --ok:#6CC38E; --warn:#E0B04D; --bad:#E58A73; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111715; --surface:#19211E; --surface2:#222C28; --line:#33413B;
+  --ink:#E3EBE7; --muted:#97A8A1; --accent:#6CC3A8; --accent-soft:#1E3A32;
+  --stamp:#E58A73; --mark:#8A6F22; --ok:#6CC38E; --warn:#E0B04D; --bad:#E58A73; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+.wrap{max-width:1320px;margin:0 auto}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+header.top{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;justify-content:space-between;padding-block:22px 16px;border-bottom:2px solid var(--ink)}
+.brand small{display:block;font-size:12px;letter-spacing:.12em;color:var(--muted)}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,4vw,36px);line-height:1.15;margin:2px 0 0;text-wrap:balance}
+.slip{display:flex;gap:0;border:1.5px solid var(--ink);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.slip div{padding:8px 14px;border-right:1px dashed var(--line)}
+.slip div:last-child{border-right:0}
+.slip span{display:block;font-size:11px;letter-spacing:.08em;color:var(--muted)}
+.slip b{font-family:var(--f-mono);font-size:15px;font-variant-numeric:tabular-nums}
+.slip .due b{color:var(--stamp)}
+
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:16px 0 18px}
+nav.tabs button{border:1px solid var(--line);background:var(--surface);padding:8px 16px;border-radius:999px;cursor:pointer;font-weight:500}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:var(--r);cursor:pointer;font-weight:500;font-size:14px;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:4px 10px;font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* layout */
+.grid{display:grid;grid-template-columns:200px minmax(0,1fr) 300px;gap:20px;align-items:start}
+@media (max-width:1100px){.grid{grid-template-columns:180px minmax(0,1fr)}.side{grid-column:1/-1}}
+@media (max-width:720px){.grid{grid-template-columns:1fr}}
+
+/* book spines */
+.shelf h3,.side h3{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 8px;font-weight:600}
+.spines{display:flex;flex-direction:column;gap:6px}
+@media (max-width:720px){.spines{flex-direction:row;overflow-x:auto;padding-bottom:4px}}
+.spine{text-align:left;border:1px solid var(--line);border-left:8px solid var(--c,var(--accent));background:var(--surface);padding:8px 10px;border-radius:4px;cursor:pointer;min-width:140px}
+.spine[aria-current="true"]{border-color:var(--ink);border-left-color:var(--c);box-shadow:inset 0 0 0 1px var(--ink)}
+.spine b{display:block;font-family:var(--f-display);font-size:14px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spine small{color:var(--muted);font-size:12px}
+.meter{height:4px;background:var(--surface2);border-radius:2px;margin-top:6px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent)}
+
+/* form card */
+.sheet-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px clamp(16px,3vw,28px)}
+.sheet-card h2{font-family:var(--f-display);font-size:22px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+fieldset{border:0;padding:0;margin:0 0 22px}
+legend{font-size:12px;letter-spacing:.1em;color:var(--muted);font-weight:600;margin-bottom:10px;padding:0}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 14px}
+.fields .wide{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;min-width:0}
+input[type=text],input[type=number],input[type=date],textarea{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:4px;padding:8px 10px;font-weight:400;font-size:15px}
+textarea{resize:vertical;line-height:1.65}
+input:focus,textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+
+.q{display:grid;grid-template-columns:34px minmax(0,1fr);gap:4px 10px;padding:14px 0;border-top:1px dashed var(--line)}
+.q .n{font-family:var(--f-display);font-size:22px;color:var(--accent);line-height:1.2}
+.q .head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;align-items:baseline}
+.q .head b{font-size:15px}
+.q .cnt{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.q .hint{grid-column:2;font-size:13px;color:var(--muted);margin:0}
+.q .body{grid-column:2;display:flex;flex-direction:column;gap:6px}
+.q .flag{font-size:12.5px;color:var(--warn)}
+.q .flag.bad{color:var(--bad)}
+.inline{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+.inline input{width:110px}
+
+.declare{display:flex;gap:10px;align-items:flex-start;background:var(--accent-soft);border-radius:var(--r);padding:12px 14px;font-size:14px}
+.declare input{margin-top:5px}
+
+/* side panel */
+.side{position:sticky;top:12px;display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.score{display:flex;align-items:baseline;gap:8px}
+.score b{font-family:var(--f-mono);font-size:32px;font-variant-numeric:tabular-nums}
+.checks{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.checks li{display:grid;grid-template-columns:18px 1fr;gap:6px}
+.checks li::before{content:"";width:10px;height:10px;border-radius:50%;margin-top:6px;background:var(--line)}
+.checks li.ok::before{background:var(--ok)}
+.checks li.warn::before{background:var(--warn)}
+.checks li.bad::before{background:var(--bad)}
+.side .btn{width:100%;justify-content:center}
+.stack{display:flex;flex-direction:column;gap:6px}
+
+/* summary */
+.sum-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media (max-width:900px){.sum-grid{grid-template-columns:1fr}}
+.sum-box textarea{min-height:260px;font-size:15px;background:var(--bg)}
+.bytes{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bytes.over{color:var(--bad)}
+.note{font-size:13px;color:var(--muted);margin:6px 0 0}
+.mark{background:linear-gradient(transparent 55%,var(--mark) 55%)}
+.opt{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13.5px;margin:8px 0}
+
+/* caution */
+.caution{border:1px solid var(--line);border-left:4px solid var(--stamp);border-radius:var(--r);background:var(--bg);padding:10px 14px;margin:0 0 20px}
+.caution summary{cursor:pointer;font-weight:700;color:var(--stamp)}
+.caution ul{margin:8px 0 2px;padding-left:18px;display:flex;flex-direction:column;gap:3px;font-size:14px}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 22px}
+.rules b{display:block;font-size:14.5px}
+.rules p{margin:2px 0 0;font-size:14px;color:var(--muted)}
+/* guide */
+.guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.guide .panel h3{font-family:var(--f-display);font-size:18px;margin:0 0 8px;letter-spacing:0;color:var(--ink)}
+.guide ul{margin:0;padding-left:18px}
+.cmp{width:100%;border-collapse:collapse;font-size:14px}
+.cmp td,.cmp th{border-top:1px solid var(--line);padding:8px;vertical-align:top;text-align:left}
+.cmp th{font-size:12px;color:var(--muted)}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:50}
+.toast.on{opacity:1;transform:translateX(-50%)}
+.view[hidden]{display:none!important}
+
+/* ===== 인쇄용 기록지 ===== */
+#printArea{display:none}
+.pg{width:210mm;min-height:297mm;padding:14mm 15mm 12mm;background:#fff;color:#111;font-family:var(--f-body);font-size:10.5pt;line-height:1.55;page-break-after:always;break-after:page;position:relative}
+.pg:last-child{page-break-after:auto;break-after:auto}
+.pg .ph{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:10px}
+.pg .ph h1{font-family:var(--f-display);font-size:20pt;margin:0}
+.pg .ph small{font-size:9pt;color:#444}
+.pg table{width:100%;border-collapse:collapse;table-layout:fixed}
+.pg th,.pg td{border:1px solid #333;padding:6px 8px;vertical-align:top;word-break:keep-all;overflow-wrap:anywhere}
+.pg th{width:34%;background:#EEF2EF;text-align:left;font-weight:600;font-size:10pt}
+.pg td{white-space:pre-wrap}
+.pg .tall td{height:28mm}
+.pg .mid td{height:18mm}
+.pg .foot{margin-top:10px;display:flex;justify-content:space-between;gap:12px;font-size:9pt;color:#333}
+.pg .chk{margin-top:8px;font-size:9.5pt;display:grid;grid-template-columns:1fr 1fr;gap:2px 16px}
+.pg .ai{margin-top:8px;border:1px solid #333;padding:6px 8px;font-size:9.5pt}
+@page{size:A4;margin:0}
+@media print{
+  body{background:#fff;padding:0}
+  .wrap,.toast{display:none!important}
+  #printArea{display:block}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <small>성도고등학교 진로진학상담부 · 1학년</small>
+      <h1>진로 독서 기록장</h1>
+    </div>
+    <div class="slip" aria-label="활동 일정">
+      <div><span>활동 기간</span><b>11.02 – 12.19</b></div>
+      <div class="due"><span>제출 마감</span><b>12.04 16:30</b></div>
+      <div><span>남은 시간</span><b id="dday">-</b></div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-view="write" aria-selected="true">기록지 작성</button>
+    <button role="tab" data-view="summary" aria-selected="false">생기부 요약</button>
+    <button role="tab" data-view="guide" aria-selected="false">작성 안내</button>
+  </nav>
+
+  <!-- 작성 -->
+  <section class="view" id="v-write">
+    <div class="grid">
+      <aside class="shelf">
+        <h3>내 책장</h3>
+        <div class="spines" id="spines"></div>
+        <div class="stack" style="margin-top:10px">
+          <button class="btn" id="addBook">+ 책 추가</button>
+          <button class="btn danger sm" id="delBook">이 책 삭제</button>
+        </div>
+      </aside>
+
+      <main class="sheet-card">
+        <h2 id="sheetTitle">진로 독서 기록지</h2>
+        <p class="sub">권당 1장 · 줄거리보다 <span class="mark">나의 질문 → 알아본 과정 → 생각의 변화</span>가 드러나게 쓰세요.</p>
+
+        <details class="caution" id="caution" open>
+          <summary>작성 전 꼭 확인하세요</summary>
+          <ul>
+            <li><b>직접 읽고 직접 쓰기</b> — 서평·줄거리 요약·다른 학생 기록을 옮기면 반영하지 않아요.</li>
+            <li><b>AI 사용 금지</b> — AI가 쓴 문장은 제출 불가. 이해용으로 참고했다면 아래 칸에 밝히세요.</li>
+            <li><b>요약은 2~3문장</b> — 나의 질문과 생각의 변화에 더 많은 분량을 쓰세요.</li>
+            <li><b>구체적으로</b> — “재미있었다” 대신 어떤 부분이, 왜 그랬는지. 쪽수도 함께.</li>
+            <li><b>출처 남기기</b> — 조사한 기사 제목·날짜, 강의명 등을 적으세요.</li>
+            <li><b>기재 불가</b> — 교외 수상, 어학 시험 성적, 부모님의 직업은 적지 않아요.</li>
+            <li><b>마감</b> — 12월 4일(금) 오후 4시 30분까지 담임선생님께.</li>
+          </ul>
+        </details>
+
+        <fieldset>
+          <legend>학생 정보 (모든 기록지 공통)</legend>
+          <div class="fields">
+            <label class="f">반<input type="number" id="s_cls" min="1" max="20" placeholder="3"></label>
+            <label class="f">번호<input type="number" id="s_num" min="1" max="40" placeholder="15"></label>
+            <label class="f">이름<input type="text" id="s_name" placeholder="홍길동"></label>
+            <label class="f wide">희망 진로 (학과·직업)<input type="text" id="s_career" placeholder="생명공학과 / 생명공학 연구원"></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>도서 정보</legend>
+          <div class="fields">
+            <label class="f wide">도서명<input type="text" id="b_title" placeholder="책 제목 (『』 없이)"></label>
+            <label class="f">저자<input type="text" id="b_author"></label>
+            <label class="f">출판사<input type="text" id="b_pub"></label>
+            <label class="f">읽기 시작<input type="date" id="b_start" min="2026-11-02" max="2026-12-19"></label>
+            <label class="f">다 읽은 날<input type="date" id="b_end" min="2026-11-02" max="2026-12-19"></label>
+          </div>
+        </fieldset>
+
+        <fieldset id="qs"><legend>기록 항목</legend></fieldset>
+
+        <fieldset>
+          <legend>AI 사용 확인</legend>
+          <label class="declare"><input type="checkbox" id="b_noai"><span>이 기록지의 문장은 <b>생성형 AI가 아닌 내가 직접</b> 썼습니다.</span></label>
+          <label class="f" style="margin-top:10px">내용 이해를 위해 AI를 참고했다면 그 사실을 적으세요 (선택)
+            <input type="text" id="b_aiNote" placeholder="예: 유전자 가위 원리가 어려워 AI에게 쉬운 설명을 요청해 참고함">
+          </label>
+        </fieldset>
+      </main>
+
+      <aside class="side">
+        <div class="panel">
+          <h3>이 기록지 점검</h3>
+          <div class="score"><b id="score">0</b><span>/ 100</span></div>
+          <div class="meter"><i id="scoreBar" style="width:0"></i></div>
+          <ul class="checks" id="checks"></ul>
+        </div>
+        <div class="panel stack">
+          <h3>출력 · 저장</h3>
+          <button class="btn primary" id="printCur">이 기록지 PDF 저장</button>
+          <button class="btn" id="printAll">전체 기록지 PDF 저장</button>
+          <button class="btn" id="dlPdf">PDF 파일 바로 내려받기</button>
+          <button class="btn" id="exportJson">제출용 파일 저장 (.json)</button>
+          <label class="btn" style="justify-content:center">저장 파일 불러오기<input type="file" id="importJson" accept=".json,application/json" hidden></label>
+          <p class="note">‘PDF 저장’은 인쇄 창에서 대상을 <b>PDF로 저장</b>으로 고르세요. 입력 내용은 이 브라우저에 자동 저장됩니다.</p>
+        </div>
+        <div class="panel stack">
+          <button class="btn" id="loadSample">작성 예시 불러오기</button>
+          <button class="btn danger" id="resetAll">새 학생으로 시작 (전체 지우기)</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 생기부 요약 -->
+  <section class="view" id="v-summary" hidden>
+    <div class="sheet-card">
+      <h2>생기부용 독서 활동 요약</h2>
+      <p class="sub">학생 기록을 바탕으로 만든 <b>초안</b>입니다. 담임·진로 선생님의 관찰 내용을 더해 다듬은 뒤 진로활동 특기사항에 활용하세요.</p>
+      <div class="opt">
+        <label><input type="checkbox" id="o_why" checked> 선정 동기</label>
+        <label><input type="checkbox" id="o_impress" checked> 인상 깊은 부분</label>
+        <label><input type="checkbox" id="o_explore" checked> 탐구 과정</label>
+        <label><input type="checkbox" id="o_src"> 조사 자료명</label>
+        <label><input type="checkbox" id="o_change" checked> 생각의 변화·계획</label>
+        <label><input type="checkbox" id="o_pub"> 출판사 표기</label>
+      </div>
+      <div class="sum-grid">
+        <div class="sum-box">
+          <div class="row" style="justify-content:space-between;margin-bottom:6px">
+            <b>① 진로활동 특기사항 초안</b>
+            <span class="bytes" id="bytes1"></span>
+          </div>
+          <textarea id="sumText" aria-label="특기사항 초안"></textarea>
+          <div class="row" style="margin-top:8px">
+            <button class="btn primary" id="copySum">초안 복사</button>
+            <button class="btn" id="regen">다시 만들기</button>
+          </div>
+          <p class="note">문장 끝을 ‘~함, ~임’ 형태로 바꾸고 ‘나는/내가’를 지웠습니다. 진로활동 특기사항은 NEIS 기준 2,100바이트(한글 약 700자)까지 입력됩니다.</p>
+        </div>
+        <div class="sum-box">
+          <div class="row" style="justify-content:space-between;margin-bottom:6px">
+            <b>② 독서 활동 요약 정보</b>
+            <span class="bytes" id="bytes2"></span>
+          </div>
+          <textarea id="infoText" aria-label="요약 정보"></textarea>
+          <div class="row" style="margin-top:8px">
+            <button class="btn primary" id="copyInfo">요약 정보 복사</button>
+          </div>
+          <p class="note">반·번호·이름, 도서명(저자), 핵심 질문, 조사 자료, 변화를 한눈에 정리한 참고용 정보입니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 안내 -->
+  <section class="view" id="v-guide" hidden>
+    <div class="guide">
+      <div class="panel"><h3>활동 개요</h3>
+        <ul>
+          <li>대상: 1학년 전체</li>
+          <li>기간: 2026. 11. 2. ~ 12. 19.</li>
+          <li>희망 진로·학과 관련 도서 1권 이상 (2권 이상 권장)</li>
+          <li>제출: 진로 독서 기록지 권당 1장, 담임선생님께</li>
+          <li>마감: <b>12월 4일(금) 오후 4시 30분</b></li>
+        </ul>
+      </div>
+      <div class="panel"><h3>도서 선정 기준</h3>
+        <ul>
+          <li>희망 진로·관심 학과와 연결되는 교양서·전공 입문서</li>
+          <li>학습 참고서, 문제집, 웹툰·만화(학습만화 포함) 제외</li>
+          <li>진로 미정이면 관심 분야나 사회 문제를 다룬 책도 좋음</li>
+          <li>고르기 어려우면 도서관 진로 도서 코너나 진로상담실 이용</li>
+        </ul>
+      </div>
+      <div class="panel"><h3>활동 순서</h3>
+        <ol style="margin:0;padding-left:18px">
+          <li>책 고르기: 고른 이유 한 줄</li>
+          <li>읽으며 표시하기: 쪽수와 함께 메모</li>
+          <li>질문 만들기: 더 알고 싶은 질문 1개 이상</li>
+          <li>더 알아보기: 기사·강의·교과 내용으로 조사</li>
+          <li>기록하기: 자신의 말로 정리</li>
+        </ol>
+      </div>
+      <div class="panel" style="grid-column:1/-1"><h3>작성 시 유의사항</h3>
+        <div class="rules">
+          <div><b>직접 읽고 직접 쓰기</b><p>인터넷 서평, 줄거리 요약, 다른 학생의 기록을 옮겨 쓰면 반영하지 않습니다. 끝까지 읽지 않은 책은 기록하지 않습니다.</p></div>
+          <div><b>생성형 AI 사용 금지</b><p>AI로 작성한 문장은 제출할 수 없습니다. 내용 이해를 돕는 용도로만 참고했다면 그 사실을 기록지에 밝히세요.</p></div>
+          <div><b>줄거리보다 생각</b><p>책 내용 요약은 2~3문장이면 충분합니다. 나의 질문과 생각의 변화에 더 많은 분량을 쓰세요.</p></div>
+          <div><b>구체적으로 쓰기</b><p>“재미있었다”, “감명 깊었다”, “유익했다” 대신 어떤 부분이, 왜 그랬는지를 적습니다.</p></div>
+          <div><b>쪽수 함께 적기</b><p>인상 깊은 부분은 쪽수를 함께 적습니다. 책 문장을 옮길 때는 한두 문장만 따옴표로 묶고 쪽수를 표시합니다.</p></div>
+          <div><b>출처 남기기</b><p>조사에 쓴 자료는 기사 제목·날짜, 강의명, 교과 단원처럼 다시 찾아볼 수 있게 적습니다.</p></div>
+          <div><b>기재할 수 없는 내용</b><p>교외 수상, 어학 시험 성적, 부모님의 직업·직장, 특정 대학·기관명을 내세운 사교육 활동은 적지 않습니다.</p></div>
+          <div><b>도서 선정 확인</b><p>학습 참고서, 문제집, 웹툰·만화(학습만화 포함)는 제외합니다. 희망 진로나 관심 분야와 연결되는지 다시 확인하세요.</p></div>
+          <div><b>기본 정보 정확히</b><p>반·번호·이름과 도서명·저자·출판사를 정확히 적습니다. 기록지는 권당 1장입니다.</p></div>
+          <div><b>마감 지키기</b><p>12월 4일(금) 오후 4시 30분까지 담임선생님께 제출합니다. 기한 이후 제출분은 반영이 어려울 수 있습니다.</p></div>
+        </div>
+      </div>
+      <div class="panel" style="grid-column:1/-1"><h3>이렇게 쓰면 아쉬워요 vs 좋아요</h3>
+        <div style="overflow-x:auto">
+        <table class="cmp">
+          <tr><th>아쉬운 기록</th><th>좋은 기록</th></tr>
+          <tr><td>유전자 가위에 대해 알게 되어 유익했다.</td><td>유전자 가위가 혈액 질환 치료에 쓰인다는 것을 알고, 치료 비용 문제까지 찾아보았다.</td></tr>
+          <tr><td>책이 재미있고 감명 깊었다.</td><td>연구 결과가 사회에 미치는 영향을 연구자도 책임져야 한다는 부분에서 연구원에 대한 생각이 바뀌었다.</td></tr>
+          <tr><td>나중에 생명공학자가 되고 싶다.</td><td>2학년 때 생명과학을 선택하고 생명윤리 토론 활동에 참여할 계획이다.</td></tr>
+        </table>
+        </div>
+        <p class="note">문의: 진로상담실 (진로진학상담교사 정택) · 점심시간, 방과 후</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="printArea"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const KEY='careerReading_v1';
+const DEADLINE=new Date('2026-12-04T16:30:00+09:00');
+const COLORS=['#1F6B5A','#B5462F','#3A5BA0','#B07A12','#6B4E9B','#2E7D7D','#8A4B2E'];
+
+const QS=[
+ {k:'why',n:'①',label:'이 책을 고른 이유',hint:'어떤 수업·경험에서 궁금해졌는지 한두 문장으로.',rows:2,min:30},
+ {k:'core',n:'②',label:'핵심 내용 (2~3문장)',hint:'줄거리는 짧게. 요약보다 아래 질문과 생각에 분량을 쓰세요.',rows:3,min:40},
+ {k:'impress',n:'③',label:'가장 인상 깊은 부분과 그 이유',hint:'어떤 부분이, 왜 새로웠는지. 쪽수를 꼭 적으세요.',rows:4,min:60,page:true},
+ {k:'question',n:'④',label:'읽고 생긴 나의 질문',hint:'예: 이 기술이 실제 병원에서는 어떻게 쓰이고 있을까?',rows:2,min:15},
+ {k:'explore',n:'⑤',label:'질문을 더 알아본 과정',hint:'무엇을 찾아봤고, 무엇을 알게 되었는지.',rows:4,min:60},
+ {k:'sources',n:'',label:'⑤-출처 (참고한 자료)',hint:'기사 제목·날짜, 강의명, 교과 단원 등. 한 줄에 하나씩.',rows:2,min:5},
+ {k:'change',n:'⑥',label:'진로에 대한 생각의 변화와 앞으로의 계획',hint:'생각이 어떻게 바뀌었는지 + 구체적인 계획(과목 선택, 활동 등).',rows:4,min:60},
+ {k:'next',n:'',label:'다음에 읽고 싶은 책',hint:'',rows:1,min:0}
+];
+const BOOK_KEYS=['title','author','pub','start','end'];
+
+const blankBook=()=>({id:Date.now()+Math.random(),title:'',author:'',pub:'',start:'',end:'',page:'',why:'',core:'',impress:'',question:'',explore:'',sources:'',change:'',next:'',noai:false,aiNote:''});
+let S={student:{cls:'',num:'',name:'',career:''},books:[blankBook()],cur:0};
+try{const raw=localStorage.getItem(KEY); if(raw){const d=JSON.parse(raw); if(d&&d.books&&d.books.length) S=d;}}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const cur=()=>S.books[S.cur]||S.books[0];
+
+/* ---------- toast / copy ---------- */
+let tt; function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2000)}
+async function copy(text,ta){
+  try{await navigator.clipboard.writeText(text);toast('복사했습니다');}
+  catch(e){
+    const el=ta||Object.assign(document.createElement('textarea'),{value:text});
+    if(!ta){el.style.position='fixed';el.style.opacity='0';document.body.appendChild(el)}
+    el.focus();el.select();
+    let ok=false;try{ok=document.execCommand('copy')}catch(_){}
+    if(!ta)el.remove();
+    toast(ok?'복사했습니다':'텍스트를 선택했습니다. Ctrl+C로 복사하세요');
+  }
+}
+function download(name,text,type){
+  const b=new Blob([text],{type});const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+}
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- D-day ---------- */
+function tick(){
+  const ms=DEADLINE-new Date(); const el=$('#dday');
+  if(ms<=0){el.textContent='마감됨';return}
+  const d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5);
+  el.textContent=`D-${d} ${h}시간`;
+}
+tick();setInterval(tick,60000);
+
+/* ---------- tabs ---------- */
+$$('nav.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  $$('nav.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  $$('.view').forEach(v=>v.hidden=v.id!=='v-'+b.dataset.view);
+  if(b.dataset.view==='summary')buildSummaryView();
+}));
+
+/* ---------- 질문 폼 만들기 ---------- */
+const qsBox=$('#qs');
+QS.forEach(q=>{
+  const d=document.createElement('div');d.className='q';
+  d.innerHTML=`<div class="n">${q.n||'·'}</div>
+   <div class="head"><b>${q.label}</b><span class="cnt" id="c_${q.k}"></span></div>
+   ${q.hint?`<p class="hint">${q.hint}</p>`:''}
+   <div class="body">
+     ${q.page?`<span class="inline">쪽수 <input type="text" id="b_page" placeholder="112쪽"></span>`:''}
+     ${q.rows>1?`<textarea id="b_${q.k}" rows="${q.rows}"></textarea>`:`<input type="text" id="b_${q.k}">`}
+     <span class="flag" id="fl_${q.k}"></span>
+   </div>`;
+  qsBox.appendChild(d);
+});
+
+/* ---------- 점검 ---------- */
+const VAGUE=['재미있','재밌','감명 깊','감명깊','유익했','유익하였','좋았다','대단하다','신기했다','느낀 점이 많','많은 것을 느'];
+const BANNED=[[/수상|입상|대회|공모전|올림피아드/,'교외 수상 관련 표현'],[/토익|토플|텝스|TOEIC|TOEFL|TEPS|HSK|JLPT|DELF|어학\s*성적|급수\s*시험/i,'어학 시험 관련 표현'],[/부모님|아버지|어머니|아빠|엄마/,'부모님 관련 내용(직업 기재 금지)']];
+const sentences=t=>t.split(/(?<=[.!?。])\s+|\n+/).map(s=>s.trim()).filter(s=>s.replace(/[.!?\s]/g,'').length>1);
+const len=t=>(t||'').replace(/\s/g,'').length;
+
+function checkBook(b,st){
+  const r=[]; st=st||S.student;
+  const need=[['반·번호·이름',st.cls&&st.num&&st.name],['희망 진로',st.career],['도서명·저자',b.title&&b.author],['읽은 기간',b.start&&b.end]];
+  need.forEach(([n,v])=>r.push({lv:v?'ok':'bad',t:v?`${n} 입력됨`:`${n}을(를) 적으세요`,w:5}));
+  if(b.start&&b.end&&b.start>b.end) r.push({lv:'bad',t:'읽은 기간의 순서가 바뀌었어요',w:0});
+  const main=['why','core','impress','question','explore','change'];
+  const empty=main.filter(k=>len(b[k])===0);
+  r.push({lv:empty.length?'bad':'ok',t:empty.length?`빈 항목: ${empty.map(k=>QS.find(q=>q.k===k).n).join(' ')}`:'①~⑥ 모두 작성함',w:20});
+  const sc=sentences(b.core).length;
+  if(len(b.core)) r.push({lv:sc>=2&&sc<=3?'ok':(sc>3?'warn':'warn'),t:sc>3?`핵심 내용이 ${sc}문장이에요. 2~3문장으로 줄이세요`:sc<2?'핵심 내용은 2~3문장으로':'핵심 내용 2~3문장',w:8});
+  const pg=b.page||/\d+\s*(쪽|페이지|p\b)|p\.?\s*\d+/i.test(b.impress);
+  r.push({lv:pg?'ok':'warn',t:pg?'인상 깊은 부분에 쪽수 있음':'인상 깊은 부분에 쪽수를 적으세요',w:7});
+  const qOK=/[?？]|까|을까|ㄹ까|는지|일까/.test(b.question);
+  if(len(b.question)) r.push({lv:qOK?'ok':'warn',t:qOK?'질문 형태로 씀':'④는 물음표가 있는 질문으로 써 보세요',w:8});
+  const src=len(b.sources)>4||/출처|기사|강의|논문|보고서|교과서|단원/.test(b.explore);
+  r.push({lv:src?'ok':'warn',t:src?'조사 자료 출처 있음':'조사한 자료의 출처를 적으세요',w:10});
+  const thought=len(b.question)+len(b.explore)+len(b.change);
+  if(len(b.core)) r.push({lv:thought>len(b.core)*1.5?'ok':'warn',t:thought>len(b.core)*1.5?'요약보다 생각·탐구 분량이 많음':'요약에 비해 질문·탐구·변화 분량을 늘리세요',w:10});
+  const plan=/계획|선택|참여|읽어|탐구|해 보고|해보고|도전|하겠/.test(b.change);
+  if(len(b.change)) r.push({lv:plan?'ok':'warn',t:plan?'구체적 계획 있음':'⑥에 과목 선택·활동 같은 구체적 계획을 넣으세요',w:7});
+  const all=[b.why,b.core,b.impress,b.question,b.explore,b.change].join(' ');
+  const vg=VAGUE.filter(v=>all.includes(v));
+  r.push({lv:vg.length?'warn':'ok',t:vg.length?`막연한 표현: “${vg.join('”, “')}” → 어떤 부분이, 왜?`:'막연한 감상 표현 없음',w:5});
+  const ban=BANNED.filter(([re])=>re.test(all+' '+b.sources)).map(x=>x[1]);
+  r.push({lv:ban.length?'bad':'ok',t:ban.length?`기재 불가 확인: ${ban.join(', ')}`:'기재 불가 내용 없음',w:5});
+  r.push({lv:b.noai?'ok':'bad',t:b.noai?'직접 작성 확인함':'AI 사용 확인란에 체크하세요',w:5});
+  const tot=r.reduce((a,x)=>a+x.w,0)||1;
+  const got=r.reduce((a,x)=>a+(x.lv==='ok'?x.w:x.lv==='warn'?x.w*.4:0),0);
+  return {list:r,score:Math.round(got/tot*100)};
+}
+
+/* ---------- 렌더 ---------- */
+function bookLabel(b,i){return b.title?b.title:`${i+1}번째 책`}
+function renderSpines(){
+  $('#spines').innerHTML=S.books.map((b,i)=>{
+    const sc=checkBook(b).score;
+    return `<button class="spine" style="--c:${COLORS[i%COLORS.length]}" data-i="${i}" aria-current="${i===S.cur}">
+      <b>${esc(bookLabel(b,i))}</b><small>${esc(b.author||'저자 미입력')}</small>
+      <div class="meter"><i style="width:${sc}%"></i></div></button>`;
+  }).join('');
+  $$('.spine').forEach(el=>el.addEventListener('click',()=>{S.cur=+el.dataset.i;save();loadForm()}));
+  $('#delBook').disabled=S.books.length<2;
+}
+function renderChecks(){
+  const b=cur(),{list,score}=checkBook(b);
+  $('#score').textContent=score;$('#scoreBar').style.width=score+'%';
+  $('#checks').innerHTML=list.map(x=>`<li class="${x.lv}">${esc(x.t)}</li>`).join('');
+  QS.forEach(q=>{
+    const n=len(b[q.k]);const c=$('#c_'+q.k);
+    c.textContent=q.min?`${n}자${n&&n<q.min?' · 조금 더 자세히':''}`:`${n}자`;
+    const f=$('#fl_'+q.k);let msg='',bad=false;
+    const vg=VAGUE.filter(v=>(b[q.k]||'').includes(v));
+    if(vg.length)msg=`“${vg[0]}…” 대신 어떤 부분이, 왜 그랬는지 적어 보세요.`;
+    BANNED.forEach(([re,n])=>{if(re.test(b[q.k]||'')){msg=`${n}은(는) 기록지에 적지 않습니다.`;bad=true}});
+    if(q.k==='core'){const sc=sentences(b.core).length;if(sc>3)msg=`지금 ${sc}문장 — 2~3문장이면 충분해요.`}
+    f.textContent=msg;f.classList.toggle('bad',bad);
+  });
+  $('#sheetTitle').textContent=`진로 독서 기록지 · ${S.cur+1}번째 책`;
+}
+function loadForm(){
+  const st=S.student,b=cur();
+  $('#s_cls').value=st.cls;$('#s_num').value=st.num;$('#s_name').value=st.name;$('#s_career').value=st.career;
+  BOOK_KEYS.forEach(k=>$('#b_'+k).value=b[k]||'');
+  QS.forEach(q=>$('#b_'+q.k).value=b[q.k]||'');
+  $('#b_page').value=b.page||'';$('#b_noai').checked=!!b.noai;$('#b_aiNote').value=b.aiNote||'';
+  renderSpines();renderChecks();
+}
+let spT;
+document.addEventListener('input',e=>{
+  const id=e.target.id||'';
+  if(id.startsWith('s_')){S.student[id.slice(2)]=e.target.value}
+  else if(id.startsWith('b_')){const k=id.slice(2);cur()[k]=e.target.type==='checkbox'?e.target.checked:e.target.value}
+  else return;
+  save();renderChecks();clearTimeout(spT);spT=setTimeout(renderSpines,300);
+});
+document.addEventListener('change',e=>{if(e.target.id==='b_noai'){cur().noai=e.target.checked;save();renderChecks();renderSpines()}});
+
+$('#addBook').onclick=()=>{S.books.push(blankBook());S.cur=S.books.length-1;save();loadForm();$('#b_title').focus()};
+let delArm=0;
+$('#delBook').onclick=e=>{
+  if(S.books.length<2)return;
+  if(Date.now()-delArm>3000){delArm=Date.now();e.target.textContent='한 번 더 누르면 삭제';setTimeout(()=>e.target.textContent='이 책 삭제',3000);return}
+  S.books.splice(S.cur,1);S.cur=Math.max(0,S.cur-1);save();loadForm();e.target.textContent='이 책 삭제';toast('삭제했습니다');
+};
+let resetArm=0;
+$('#resetAll').onclick=e=>{
+  if(Date.now()-resetArm>3000){resetArm=Date.now();e.target.textContent='한 번 더 누르면 전체 삭제';setTimeout(()=>e.target.textContent='새 학생으로 시작 (전체 지우기)',3000);return}
+  S={student:{cls:'',num:'',name:'',career:''},books:[blankBook()],cur:0};save();loadForm();e.target.textContent='새 학생으로 시작 (전체 지우기)';toast('모두 지웠습니다');
+};
+
+/* ---------- 예시 ---------- */
+$('#loadSample').onclick=()=>{
+  S.student={cls:'3',num:'15',name:'홍길동',career:'생명공학과 / 생명공학 연구원'};
+  const b=blankBook();Object.assign(b,{
+    title:'유전자 편집 기술 입문(예시 도서)',author:'예시 저자',pub:'예시 출판사',start:'2026-11-03',end:'2026-11-14',page:'112쪽',
+    why:'통합과학 시간에 DNA 구조를 배우면서 유전자를 직접 고칠 수 있다는 이야기를 듣고, 실제로 어떻게 가능한지 궁금해서 골랐다.',
+    core:'유전자 가위는 특정 DNA 서열을 찾아 자르고 고치는 기술이다. 책은 이 기술이 유전병 치료와 작물 개량에 쓰일 수 있지만, 인간 배아에 적용하는 문제는 사회적 합의가 필요하다고 설명한다.',
+    impress:'기술은 이미 가능하지만 \'해도 되는가\'는 과학자 혼자 정할 수 없다는 부분. 연구원은 실험만 잘하면 된다고 생각했는데, 연구의 결과가 사회에 미치는 영향까지 고민해야 한다는 점이 새로웠다.',
+    question:'유전자 가위로 치료한 실제 사례가 있을까? 있다면 어떤 질병이고 부작용은 없었을까?',
+    explore:'과학 기사 2편과 대학 공개 강의 1편을 찾아보았다. 혈액 질환 치료에 유전자 편집 치료제가 승인된 사례가 있다는 것을 알게 되었고, 아직 비용이 매우 높아 많은 환자가 이용하기 어렵다는 한계도 확인했다.',
+    sources:'○○일보 2026.10.20 기사\n△△대학교 공개강의 \'유전자 편집의 현재\'',
+    change:'연구원이 되려면 실험 능력뿐 아니라 생명윤리에 대한 판단력도 필요하다는 것을 알게 되었다. 2학년 때 생명과학 과목을 선택하고, 생명윤리 관련 토론 활동에 참여해 보고 싶다.',
+    next:'생명윤리를 다룬 교양서',noai:true});
+  S.books=[b];S.cur=0;save();loadForm();toast('작성 예시를 불러왔습니다');
+};
+
+/* ---------- 한국어 처리 ---------- */
+function hasJong(ch){const c=ch.charCodeAt(0);if(c<0xAC00||c>0xD7A3)return /[0-9]$/.test(ch)?'136780'.includes(ch):false;return (c-0xAC00)%28!==0}
+function josa(w,a,b){const s=String(w).replace(/[\s『』」」'")\]]+$/,'');const ch=s.slice(-1);return a&&hasJong(ch)?a:b}
+function setJong(ch,j){const c=ch.charCodeAt(0);if(c<0xAC00||c>0xD7A3)return ch;const base=c-((c-0xAC00)%28);return String.fromCharCode(base+j)}
+function endNoun(s){
+  s=s.trim().replace(/\s+/g,' ');
+  let p=(s.match(/[.!。]+$/)||[''])[0];s=s.slice(0,s.length-p.length).trim();
+  if(/[?？]$/.test(s))return s;
+  const sp=[[/고 싶다$/,'고자 함'],[/고 싶었다$/,'고자 함'],[/(되었|됐)다$/,'됨'],[/했다$/,'함'],[/하였다$/,'함'],[/이었다$/,'이었음'],[/였다$/,'였음'],[/하다$/,'함'],[/이다$/,'임']];
+  for(const [re,rep] of sp){if(re.test(s))return s.replace(re,rep)+'.'}
+  if(/다$/.test(s)&&s.length>1){
+    const prev=s.slice(-2,-1),c=prev.charCodeAt(0);
+    if(c>=0xAC00&&c<=0xD7A3){
+      const j=(c-0xAC00)%28;
+      if(j===0)return s.slice(0,-2)+setJong(prev,16)+'.';
+      if(j===4)return s.slice(0,-2)+setJong(prev,16)+'.';
+      return s.slice(0,-1)+'음.';
+    }
+  }
+  return s+(p?'.':'');
+}
+function toRecord(t){
+  if(!t)return '';
+  t=t.replace(/\b(나는|저는|내가|제가)\s*/g,'').replace(/(^|\s)(나는|저는|내가|제가)\s+/g,'$1').replace(/나의\s|내\s(?=[가-힣])/g,'자신의 ');
+  return sentences(t).map(endNoun).join(' ');
+}
+function stripStop(t){return (t||'').trim().replace(/[.。]+$/,'')}
+function careerName(c){c=(c||'').trim();if(c.includes('/'))return c.split('/').pop().trim()||c;return c}
+function neisBytes(t){let n=0;for(const ch of t){if(ch==='\n')n+=2;else n+=ch.charCodeAt(0)>127?3:1}return n}
+
+/* ---------- 요약 만들기 ---------- */
+function opts(){return {why:$('#o_why').checked,impress:$('#o_impress').checked,explore:$('#o_explore').checked,src:$('#o_src').checked,change:$('#o_change').checked,pub:$('#o_pub').checked}}
+function buildDraft(data,o){
+  o=o||{why:true,impress:true,explore:true,src:false,change:true,pub:false};
+  const st=data.student,c=careerName(st.career);
+  const books=data.books.filter(b=>b.title);
+  if(!books.length)return '';
+  return books.map((b,i)=>{
+    const t=`『${b.title}』(${b.author||'저자'}${o.pub&&b.pub?', '+b.pub:''})`;
+    const p=[];
+    p.push(i===0&&c?`희망 진로인 ${c}${josa(c,'과','와')} 관련하여 ${t}${josa(b.title,'을','를')} 읽음.`:`이어서 ${t}${josa(b.title,'을','를')} 읽음.`);
+    if(o.why&&b.why)p.push(toRecord(b.why));
+    if(o.impress&&b.impress)p.push((b.page?`${stripStop(b.page)}의 내용 중 `:'')+toRecord(b.impress));
+    if(b.question)p.push(`독서 후 '${stripStop(b.question).replace(/\n/g,' ')}'라는 질문을 세움.`);
+    if(o.explore&&b.explore)p.push(toRecord(b.explore));
+    if(o.src&&b.sources)p.push(`(참고 자료: ${b.sources.split(/\n+/).map(s=>s.trim()).filter(Boolean).join(', ')})`);
+    if(o.change&&b.change)p.push(toRecord(b.change));
+    return p.join(' ');
+  }).join(' ');
+}
+function buildInfo(data){
+  const st=data.student;
+  const head=`${st.cls||'?'}반 ${st.num||'?'}번 ${st.name||'(이름)'} | 희망 진로: ${st.career||'-'}`;
+  const body=data.books.filter(b=>b.title).map((b,i)=>{
+    const L=[`[${i+1}] 『${b.title}』 / ${b.author||'-'} / ${b.pub||'-'} (${(b.start||'').slice(5).replace('-','.')}~${(b.end||'').slice(5).replace('-','.')})`];
+    if(b.why)L.push(` · 선정 동기: ${b.why.replace(/\n/g,' ')}`);
+    if(b.question)L.push(` · 나의 질문: ${b.question.replace(/\n/g,' ')}`);
+    if(b.sources)L.push(` · 조사 자료: ${b.sources.split(/\n+/).filter(Boolean).join(', ')}`);
+    if(b.change)L.push(` · 생각의 변화·계획: ${b.change.replace(/\n/g,' ')}`);
+    if(b.next)L.push(` · 다음 읽을 책: ${b.next}`);
+    if(b.aiNote)L.push(` · AI 참고 사실: ${b.aiNote}`);
+    return L.join('\n');
+  });
+  return [head,...body].join('\n');
+}
+function showBytes(el,t){const b=neisBytes(t);el.textContent=`${t.length.toLocaleString()}자 · ${b.toLocaleString()} / 2,100바이트`;el.classList.toggle('over',b>2100)}
+function buildSummaryView(){
+  const d=buildDraft(S,opts());
+  $('#sumText').value=d||'도서명을 입력하면 초안이 만들어집니다.';
+  $('#infoText').value=buildInfo(S);
+  showBytes($('#bytes1'),$('#sumText').value);showBytes($('#bytes2'),$('#infoText').value);
+}
+$$('.opt input').forEach(i=>i.addEventListener('change',buildSummaryView));
+$('#regen').onclick=()=>{buildSummaryView();toast('초안을 다시 만들었습니다')};
+$('#sumText').addEventListener('input',e=>showBytes($('#bytes1'),e.target.value));
+$('#infoText').addEventListener('input',e=>showBytes($('#bytes2'),e.target.value));
+$('#copySum').onclick=()=>copy($('#sumText').value,$('#sumText'));
+$('#copyInfo').onclick=()=>copy($('#infoText').value,$('#infoText'));
+
+/* ---------- 인쇄 / PDF ---------- */
+function sheetHTML(b,st,idx,total){
+  const ck=checkBook(b,st);
+  const ok=t=>ck.list.some(x=>x.lv==='ok'&&x.t.includes(t));
+  const row=(h,v,cls='')=>`<tr class="${cls}"><th>${h}</th><td>${esc(v)}</td></tr>`;
+  const per=(b.start||b.end)?`${(b.start||'').replace(/-/g,'.')} ~ ${(b.end||'').replace(/-/g,'.')}`:'';
+  return `<div class="pg">
+   <div class="ph"><div><small>성도고등학교 1학년 진로활동</small><h1>진로 독서 기록지</h1></div><small>${idx+1} / ${total}권</small></div>
+   <table>
+    ${row('반 / 번호 / 이름',`1학년 ${st.cls||'  '}반 ${st.num||'  '}번 ${st.name||''}`)}
+    ${row('희망 진로 (학과·직업)',st.career)}
+    ${row('도서명 / 저자 / 출판사',b.title?`『${b.title}』 / ${b.author} / ${b.pub}`:'')}
+    ${row('읽은 기간',per)}
+    ${row('① 이 책을 고른 이유',b.why,'mid')}
+    ${row('② 핵심 내용 (2~3문장)',b.core,'mid')}
+    ${row('③ 가장 인상 깊은 부분과 그 이유 (쪽수 포함)',(b.page?b.page+', ':'')+b.impress,'tall')}
+    ${row('④ 읽고 생긴 나의 질문',b.question,'mid')}
+    ${row('⑤ 질문을 더 알아본 과정과 자료 (출처 포함)',b.explore+(b.sources?`\n(출처: ${b.sources.split(/\n+/).filter(Boolean).join(', ')})`:''),'tall')}
+    ${row('⑥ 진로에 대한 생각의 변화와 앞으로의 계획',b.change,'tall')}
+    ${row('다음에 읽고 싶은 책',b.next)}
+   </table>
+   <div class="ai">${b.noai?'☑':'☐'} 이 기록지의 문장은 생성형 AI가 아닌 내가 직접 썼습니다.${b.aiNote?`<br>AI 참고 사실: ${esc(b.aiNote)}`:''}</div>
+   <div class="chk">
+    <span>${b.title&&st.career?'☑':'☐'} 희망 진로와 관련된 책을 골랐나요?</span>
+    <span>${ok('모두 작성')?'☑':'☐'} 기록지의 모든 항목을 채웠나요?</span>
+    <span>${st.cls&&st.num&&st.name?'☑':'☐'} 반·번호·이름을 정확히 적었나요?</span>
+    <span>☐ 마감일(12. 4. 16:30) 전에 담임선생님께 제출했나요?</span>
+   </div>
+   <div class="foot"><span>제출일: 2026.   .   .</span><span>성도고등학교 진로진학상담부</span></div>
+  </div>`;
+}
+function fillPrint(all){
+  const st=S.student,list=all?S.books:[cur()];
+  const base=all?0:S.cur;
+  $('#printArea').innerHTML=list.map((b,i)=>sheetHTML(b,st,all?i:base,S.books.length)).join('');
+}
+function doPrint(all){
+  fillPrint(all);
+  setTimeout(()=>{try{window.print()}catch(e){toast('인쇄 창을 열 수 없습니다. PDF 파일 바로 내려받기를 이용하세요')}},50);
+}
+$('#printCur').onclick=()=>doPrint(false);
+$('#printAll').onclick=()=>doPrint(true);
+function fname(ext){const s=S.student;return `1-${s.cls||'0'}-${s.num||'0'}_${s.name||'이름'}_진로독서.${ext}`}
+function loadScript(src){return new Promise((res,rej)=>{if(window.html2pdf)return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+$('#dlPdf').onclick=async()=>{
+  toast('PDF를 만드는 중입니다…');
+  try{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js')}
+  catch(e){toast('PDF 도구를 불러오지 못했습니다. 인터넷 연결을 확인하거나 ‘PDF 저장’을 이용하세요');return}
+  fillPrint(true);
+  const host=document.createElement('div');host.style.cssText='position:fixed;left:-10000px;top:0;width:210mm;background:#fff';
+  host.innerHTML=$('#printArea').innerHTML;document.body.appendChild(host);
+  host.querySelectorAll('.pg').forEach(p=>{p.style.height='297mm';p.style.overflow='hidden'});
+  try{
+    await html2pdf().set({margin:0,filename:fname('pdf'),image:{type:'jpeg',quality:.96},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css'],after:'.pg'}}).from(host).save();
+    toast('PDF를 내려받았습니다');
+  }catch(e){toast('PDF 만들기에 실패했습니다. ‘PDF 저장’을 이용하세요')}
+  host.remove();
+};
+
+/* ---------- 저장 / 불러오기 ---------- */
+$('#exportJson').onclick=()=>{
+  const s=S.student;if(!s.cls||!s.num||!s.name){toast('반·번호·이름을 먼저 적으세요');return}
+  download(fname('json'),JSON.stringify({app:'career-reading',ver:1,savedAt:new Date().toISOString(),student:S.student,books:S.books},null,1),'application/json');
+  toast('제출용 파일을 저장했습니다');
+};
+function parseData(txt){const d=JSON.parse(txt);if(!d||!d.student||!Array.isArray(d.books))throw new Error('형식');d.books=d.books.map(b=>Object.assign(blankBook(),b));return d}
+$('#importJson').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const d=parseData(r.result);S={student:d.student,books:d.books,cur:0};save();loadForm();toast('불러왔습니다')}catch(err){toast('기록장에서 저장한 .json 파일만 불러올 수 있습니다')}};
+  r.readAsText(f,'utf-8');e.target.value='';
+};
+
+loadForm();
+})();
+</script>
+</body>
+</html>
